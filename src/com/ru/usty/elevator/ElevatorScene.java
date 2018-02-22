@@ -45,13 +45,13 @@ public class ElevatorScene {
 	/* SEMAPHORES/MUTEXES */
 	public static Semaphore exitedCountMutex;
 	public static Semaphore personCountMutex;
-	public static Semaphore waitForElevatorSemaphore;
-	public static Semaphore waitForFloorInElevatorMutex;
 	public static Semaphore oneEnterElevatorAtTimeMutex;
 	public static Semaphore oneExitsElevatorAtTimeMutex;
 	public static Semaphore oneElevatorOpensAtTimeMutex;
 	public static ArrayList <Semaphore> elevatorPositionMutex;
 	public static ArrayList <Semaphore> elevatorPopulationMutex;
+	public static ArrayList <Semaphore> waitInElevatorSemaphoreForFloor;
+	public static ArrayList <Semaphore> waitForElevatorSemaphoreAtFloor;
 
 	
 	/************************************
@@ -83,14 +83,12 @@ public class ElevatorScene {
 		}
 		elevatorsShouldStop = false;
 				
-		/* INITIALIZE MUTEXES FOR ENVIRONMENT */
+		/* INITIALIZE MUTEXES AND SEMAPHORES FOR ENVIRONMENT */
 		ElevatorScene.exitedCountMutex				=		new Semaphore(1);
 		ElevatorScene.personCountMutex				=		new Semaphore(1);
 		ElevatorScene.personCountMutex				=		new Semaphore(1);
 		ElevatorScene.oneEnterElevatorAtTimeMutex	=		new Semaphore(1);
 		ElevatorScene.oneExitsElevatorAtTimeMutex	=		new Semaphore(1);
-		ElevatorScene.waitForElevatorSemaphore		=		new Semaphore(1);
-		ElevatorScene.waitForFloorInElevatorMutex	=		new Semaphore(0);
 		ElevatorScene.oneElevatorOpensAtTimeMutex	=		new Semaphore(1);
 		elevatorPositionMutex = new ArrayList<Semaphore>();
 		for(int i = 0; i < numberOfElevators; i++) {
@@ -99,6 +97,14 @@ public class ElevatorScene {
 		elevatorPopulationMutex = new ArrayList<Semaphore>();
 		for(int i = 0; i < numberOfElevators; i++) {
 			elevatorPopulationMutex.add(new Semaphore(1));
+		}
+		waitForElevatorSemaphoreAtFloor = new ArrayList<Semaphore>();
+		for(int i = 0; i < numberOfFloors; i++) {
+			waitForElevatorSemaphoreAtFloor.add(new Semaphore(0));
+		}
+		waitInElevatorSemaphoreForFloor = new ArrayList<Semaphore>();
+		for(int i = 0; i < numberOfFloors; i++) {
+			waitInElevatorSemaphoreForFloor.add(new Semaphore(0));
 		}
 		
 		/* INITIALIZE FLOORS VARIABLES */

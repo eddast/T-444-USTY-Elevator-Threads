@@ -37,7 +37,7 @@ public class Person implements Runnable {
 			
 			ElevatorScene.oneEnterElevatorAtTimeMutex.acquire();
 				// critical section
-				ElevatorScene.waitForElevatorSemaphore.acquire();
+				ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
 				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
 			ElevatorScene.oneEnterElevatorAtTimeMutex.release();
 			
@@ -53,7 +53,7 @@ public class Person implements Runnable {
 		try {
 			ElevatorScene.oneExitsElevatorAtTimeMutex.acquire();
 				// critical section
-				ElevatorScene.waitForFloorInElevatorMutex.acquire();
+				ElevatorScene.waitInElevatorSemaphoreForFloor.get(destinationFloor).acquire();
 			ElevatorScene.oneExitsElevatorAtTimeMutex.release();
 			
 		} catch (InterruptedException e) { e.printStackTrace(); }
