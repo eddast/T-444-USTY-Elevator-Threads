@@ -17,8 +17,8 @@ public class Elevator implements Runnable{
 
 	// An elevator needs an id and orientation
 	public boolean ascending; public int thisElevator;
-	private static final int ELEVATOR_WAIT_LONG = 300;
-	private static final int ELEVATOR_WAIT_SHORT = 100;
+	private static final int ELEVATOR_WAIT_LONG = 450;
+	private static final int ELEVATOR_WAIT_SHORT = 200;
 	
 	// Elevators are referenced by an id
 	// And oriented by ascending or descending
