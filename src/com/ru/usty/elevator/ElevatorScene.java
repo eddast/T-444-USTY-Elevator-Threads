@@ -31,6 +31,10 @@ public class ElevatorScene {
 	/* ENVIRONMENT SPECIFICATIONS */
 	private int numberOfFloors;
 	private int numberOfElevators;
+	private int maximumElevatorPopulation;
+	public int currentlyOpenedElevator;
+	public boolean elevatorsShouldStop;
+	public ArrayList<Thread> elevators = null;
 	
 	/* SYSTEM VARIABLE COUNT MANAGEMENT */
 	public ArrayList<Integer> personCount;
@@ -41,50 +45,61 @@ public class ElevatorScene {
 	/* SEMAPHORES/MUTEXES */
 	public static Semaphore exitedCountMutex;
 	public static Semaphore personCountMutex;
-	public static Semaphore elevatorWaitMutex;
+	public static Semaphore waitForElevatorSemaphore;
+	public static Semaphore waitForFloorInElevatorMutex;
+	public static Semaphore oneEnterElevatorAtTimeMutex;
+	public static Semaphore oneExitsElevatorAtTimeMutex;
+	public static Semaphore oneElevatorOpensAtTimeMutex;
 	public static ArrayList <Semaphore> elevatorPositionMutex;
 	public static ArrayList <Semaphore> elevatorPopulationMutex;
-	
-	/************** tmp **************/
-	public static Semaphore semaphore1;
-	/*********************************/
 
-	
 	
 	/************************************
 	 * 		BASE FUNCTIONS (CHANGED)
 	 ************************************/
 	
-	//Base function: definition must not change
-	//Necessary to add your code in this one
+	// Initializes environment and variables necessary for a given problem
 	public void restartScene(int numberOfFloors, int numberOfElevators) {
 		
-		/******************* ATH TEMP KÓÐI TMP KÓÐI ***********************/ 
-		semaphore1 = new Semaphore(0); // temp
-		new Thread(new Runnable() { // Þykistulyfta sem tekur 16 manns inn
-
-			@Override
-			public void run() {
-				for(int i = 0; i < 16; i++) {
-					ElevatorScene.semaphore1.release(); // semSignal
-				}
-			}
-			
-		}).start();
-		/******************************************************************/ 
 		
 		/* INITIALIZE ENVIRONMENT */
 		this.numberOfFloors = numberOfFloors;
 		this.numberOfElevators = numberOfElevators;
+		this.maximumElevatorPopulation = 6;
+		this.currentlyOpenedElevator = 0;
 		
+		// Kill elevators from previous scene still running
+		// Wait for them to die (brutal)
+		elevatorsShouldStop = true;
+		if(elevators != null) {
+			for (Thread elevator : elevators) {
+				if (elevator != null) {
+					if (elevator.isAlive() ) {
+						try								{ elevator.join(); }
+						catch (InterruptedException e)	{ e.printStackTrace(); }	
+					}
+				}
+			}
+		}
+		elevatorsShouldStop = false;
+				
 		/* INITIALIZE MUTEXES FOR ENVIRONMENT */
-		ElevatorScene.exitedCountMutex	=	new Semaphore(1);
-		ElevatorScene.personCountMutex	=	new Semaphore(1);
-		ElevatorScene.personCountMutex	=	new Semaphore(1);
-		ElevatorScene.elevatorWaitMutex	=	new Semaphore(1);
-		// TODO init mutex arraylists
-		// public static ArrayList <Semaphore> elevatorPositionMutex;
-		// public static ArrayList <Semaphore> elevatorPopulationMutex;
+		ElevatorScene.exitedCountMutex				=		new Semaphore(1);
+		ElevatorScene.personCountMutex				=		new Semaphore(1);
+		ElevatorScene.personCountMutex				=		new Semaphore(1);
+		ElevatorScene.oneEnterElevatorAtTimeMutex	=		new Semaphore(1);
+		ElevatorScene.oneExitsElevatorAtTimeMutex	=		new Semaphore(1);
+		ElevatorScene.waitForElevatorSemaphore		=		new Semaphore(1);
+		ElevatorScene.waitForFloorInElevatorMutex	=		new Semaphore(0);
+		ElevatorScene.oneElevatorOpensAtTimeMutex	=		new Semaphore(1);
+		elevatorPositionMutex = new ArrayList<Semaphore>();
+		for(int i = 0; i < numberOfElevators; i++) {
+			elevatorPositionMutex.add(new Semaphore(1));
+		}
+		elevatorPopulationMutex = new ArrayList<Semaphore>();
+		for(int i = 0; i < numberOfElevators; i++) {
+			elevatorPopulationMutex.add(new Semaphore(1));
+		}
 		
 		/* INITIALIZE FLOORS VARIABLES */
 		// person count and exited person count per floor
@@ -107,11 +122,17 @@ public class ElevatorScene {
 		for(int i = 0; i < numberOfElevators; i++) {
 			this.elevatorPosition.add(0);
 			this.elevatorPopulation.add(0);
-			
 		}
 		
-		/* READY TO SET THE SCENE! */
+		/* SET THE SCENE */
 		ElevatorScene.scene = this;
+		
+		/* INITIALIZE ELEVATORS */
+		elevators = new ArrayList<Thread>();
+		for(int i = 0; i < numberOfElevators; i++) {
+			elevators.add(new Thread(new Elevator(i)));
+			elevators.get(i).start();
+		}
 	}
 
 	// Adds a person to the environment waiting at some floor for an elevator
@@ -131,9 +152,24 @@ public class ElevatorScene {
 	
 	
 	
-	/********************************************************************
-	 * 			NEW HELPER FUNCTIONS (DECREMENTS AND INCREMENTS)
-	 ********************************************************************/
+	/****************************************
+	 * 			NEW HELPER FUNCTIONS
+	 ****************************************/
+	
+	// Determines whether a given elevator is full
+	public boolean elevatorIsFull (int elevator) {
+		return getNumberOfPeopleInElevator(elevator) == maximumElevatorPopulation;
+	}
+	
+	// Determines whether a given elevator is empty
+	public boolean elevatorIsEmpty (int elevator) {
+		return getNumberOfPeopleInElevator(elevator) == 0;
+	}
+	
+	// Determines if no one is waiting for an elevator at a given floor
+	public boolean noOneWaitingAtFloor(int floor) {
+		return getNumberOfPeopleWaitingAtFloor(floor) == 0;
+	}
 	
 	/**
 	 * Following functions have a critical section protected by semaphore mutexes
@@ -176,13 +212,15 @@ public class ElevatorScene {
 	
 	// Increment at which floor a given elevator is on
 	public void incrementElevatorFloor (int elevator) {
-		try {
-			ElevatorScene.elevatorPositionMutex.get(elevator).acquire();
-				// critical section
-				elevatorPosition.set(elevator, (elevatorPosition.get(elevator)+1));
-			ElevatorScene.elevatorPositionMutex.get(elevator).release();
-			
-		} catch (InterruptedException e) { e.printStackTrace(); }
+
+		if(elevatorPosition.get(elevator) != getNumberOfFloors() - 1) {
+			try {
+				ElevatorScene.elevatorPositionMutex.get(elevator).acquire();
+					// critical section
+					elevatorPosition.set(elevator, (elevatorPosition.get(elevator)+1));
+				ElevatorScene.elevatorPositionMutex.get(elevator).release();
+			} catch (InterruptedException e) { e.printStackTrace(); }
+		}
 	}
 	
 	// Decrement elevator's person count for a given elevator
@@ -207,7 +245,7 @@ public class ElevatorScene {
 		} catch (InterruptedException e) { e.printStackTrace(); }
 	}
 	
-	
+	public int getElevatorCurrentlyOpen() { return this.currentlyOpenedElevator; }
 	
 	/*****************************************************
 	 * 			PROJECT BASE FUNCTIONS (UNCHANGED)

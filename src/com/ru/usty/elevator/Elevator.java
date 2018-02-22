@@ -17,12 +17,26 @@ public class Elevator implements Runnable{
 
 	// An elevator needs an id and orientation
 	public boolean ascending; public int thisElevator;
+	private static final int ELEVATOR_WAIT_LONG = 400;
+	private static final int ELEVATOR_WAIT_SHORT = 200;
 	
 	// Elevators are referenced by an id
 	// And oriented by ascending or descending
 	Elevator (int elevatorID) {
 		this.thisElevator = elevatorID;
 		ascending = false;
+	}
+	
+	// Make elevator wait for long or short time
+	// Makes visualization prettier
+	private void elevatorWait(boolean isMovingBetweenFloors) {
+		
+		int waitTime;
+		if (isMovingBetweenFloors)	{ waitTime = ELEVATOR_WAIT_LONG; }
+		else							{ waitTime = ELEVATOR_WAIT_SHORT; }
+		
+		try								{ Thread.sleep(waitTime); }
+		catch (InterruptedException e)	{ e.printStackTrace(); }
 	}
 	
 	// Implements the run function to describe Elevator' functionality when started
@@ -32,30 +46,45 @@ public class Elevator implements Runnable{
 		
 		while (true) {
 			
-			// Get people currently in elevator and which floor the elevator is at in each iteration
-			int numOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
-			int elevatorCurrentFloor	 = ElevatorScene.scene.getCurrentFloorForElevator(thisElevator);
+			// Stop thread when elevators are explicitly notified to stop
+			if (ElevatorScene.scene.elevatorsShouldStop) { return; }
+			
+			// Get current floor of elevator in each iteration
+			int atFloor	 = ElevatorScene.scene.getCurrentFloorForElevator(thisElevator);
+			int numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
 			
 			// Elevator checks if any person in it wishes to get out at floor
-			// Decrement elevator population if anyone got out
-			/* TODO */
+			if (!ElevatorScene.scene.elevatorIsEmpty(thisElevator)) {
+				elevatorWait(false);
+			}
 			
-			// Elevator checks if any person is on floor waiting for it
-			// Lets that person in if there's room in elevator
-			// Increment elevator population if anyone got in
-			/* TODO */
+			// Elevator takes in person/s waiting if there are any
+			// Lets in persons in IF there's room in elevator
+			while	(!ElevatorScene.scene.noOneWaitingAtFloor(atFloor) &&
+					 !ElevatorScene.scene.elevatorIsFull(thisElevator)) {
+				try {
+					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
+						// critical section
+						ElevatorScene.waitForElevatorSemaphore.release();
+						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
+					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
+				} catch (InterruptedException e) { e.printStackTrace(); }
+				elevatorWait(false);
+			}
 			
 			// Check whether elevator is at top or bottom floor
 			// If so change orientation of the elevator for next iteration
 			int bottomFloor = 0;
 			int topFloor = ElevatorScene.scene.getNumberOfFloors() - 1; 
-			if ((elevatorCurrentFloor == topFloor) || (elevatorCurrentFloor == bottomFloor)) {
+			if ((atFloor == topFloor) || (atFloor == bottomFloor)) {
 					this.ascending = !this.ascending;
 			}
 			
-			// Now that elevator has done it's duty at this floor, it goes to the next
+			// Now that elevator is done on this floor it moves to the next
 			if (this.ascending)	{ ElevatorScene.scene.incrementElevatorFloor(thisElevator); }
 			else					{ ElevatorScene.scene.decrementElevatorFloor(thisElevator); }
+			
+			elevatorWait(true);
 		}
 	}
 

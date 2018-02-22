@@ -15,7 +15,7 @@ package com.ru.usty.elevator;
 // Mimics behavior of a person taking an elevator to a floor
 public class Person implements Runnable {
 	
-	int sourceFloor, destinationFloor;
+	public int sourceFloor, destinationFloor;
 	
 	// Person knows where they came from and where they wish to go
 	// Therefore each person thread carries source and destination floor
@@ -29,26 +29,38 @@ public class Person implements Runnable {
 	// A person awaits an elevator, then gets in, then awaits their floor, then exit
 	@Override public void run() {
 		
+		int transitElevator = 0;
+		
 		// Acquire a semaphore, i.e. conduct a wait for an available elevator 
+		// Only one can enter elevator at time, so we have extra mutex around the wait semaphore
 		try { 
-			ElevatorScene.elevatorWaitMutex.acquire(); // Lyftan þarf að lock-a og opna þennan mutex
-				ElevatorScene.semaphore1.acquire(); // wait
-			ElevatorScene.elevatorWaitMutex.release();
+			
+			ElevatorScene.oneEnterElevatorAtTimeMutex.acquire();
+				// critical section
+				ElevatorScene.waitForElevatorSemaphore.acquire();
+				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
+			ElevatorScene.oneEnterElevatorAtTimeMutex.release();
 			
 		} catch (InterruptedException e)	{ e.printStackTrace(); }
 		
 		// Once wait is through, we decrement the number of people waiting
 		// And similarly increment people in the elevator
 		ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
-		// TODO ElevatorScene.scene.incrementElevatorPopulation(????);
+		ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
 		
 		// Acquire some in-elevator-waiting semaphore for destination floor
 		// i.e. conduct a wait for elevator to release the person at desired floor
-		/* TODO wtf */
+		try {
+			ElevatorScene.oneExitsElevatorAtTimeMutex.acquire();
+				// critical section
+				ElevatorScene.waitForFloorInElevatorMutex.acquire();
+			ElevatorScene.oneExitsElevatorAtTimeMutex.release();
+			
+		} catch (InterruptedException e) { e.printStackTrace(); }
 		
 		// Decrement number of people in elevator as this person is at desired floor
 		// Then explicitly let people know that a person has exited at desired floor ( for visualization) 
-		/* TODO ElevatorScene.scene.decrementElevatorPopulation(????);*/
+		ElevatorScene.scene.decrementElevatorPopulation(transitElevator);
 		ElevatorScene.scene.personExitsAtFloor(this.destinationFloor);
 	}
 }
