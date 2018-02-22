@@ -56,16 +56,13 @@ public class Elevator implements Runnable{
 			// Elevator checks if any person in it wishes to get out at floor
 			if (!ElevatorScene.scene.elevatorIsEmpty(thisElevator)) {
 				try {
-					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
-						// critical section
-						ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).release(numberOfPeopleInElevator);
-						elevatorWait(true);
-						numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
-						ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).acquire(numberOfPeopleInElevator);
-					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
+					ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).release(numberOfPeopleInElevator);
+					elevatorWait(true);
+					numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
+					ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).acquire(numberOfPeopleInElevator);
 					
 				} catch (InterruptedException e) { e.printStackTrace(); }
-				elevatorWait(false);
+				elevatorWait(true);
 			}
 			
 			// Elevator takes in person/s waiting if there are any

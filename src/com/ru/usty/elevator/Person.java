@@ -35,11 +35,11 @@ public class Person implements Runnable {
 		// Only one can enter elevator at time, so we have extra mutex around the wait semaphore
 		try { 
 			
-			ElevatorScene.oneEnterElevatorAtTimeMutex.acquire();
+			//ElevatorScene.oneEnterElevatorAtTimeMutex.acquire();
 				// critical section
 				ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
 				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
-			ElevatorScene.oneEnterElevatorAtTimeMutex.release();
+			//ElevatorScene.oneEnterElevatorAtTimeMutex.release();
 			
 		} catch (InterruptedException e)	{ e.printStackTrace(); }
 		
@@ -50,13 +50,8 @@ public class Person implements Runnable {
 		
 		// Acquire some in-elevator-waiting semaphore for destination floor
 		// i.e. conduct a wait for elevator to release the person at desired floor
-		try {
-			ElevatorScene.oneExitsElevatorAtTimeMutex.acquire();
-				// critical section
-				ElevatorScene.waitInElevatorSemaphoreForFloor.get(destinationFloor).acquire();
-			ElevatorScene.oneExitsElevatorAtTimeMutex.release();
-			
-		} catch (InterruptedException e) { e.printStackTrace(); }
+		try { ElevatorScene.waitInElevatorSemaphoreForFloor.get(destinationFloor).acquire(); }
+		catch (InterruptedException e) { e.printStackTrace(); }
 		
 		// Decrement number of people in elevator as this person is at desired floor
 		// Then explicitly let people know that a person has exited at desired floor ( for visualization) 
