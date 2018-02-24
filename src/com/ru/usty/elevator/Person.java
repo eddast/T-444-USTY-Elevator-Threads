@@ -39,18 +39,20 @@ public class Person implements Runnable {
 				// critical section
 				ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
 				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
+				ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
+				ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
+				Thread.sleep(50);
+				ElevatorScene.oneElevatorOpensAtTimeMutex.release();
 			//ElevatorScene.oneEnterElevatorAtTimeMutex.release();
 			
 		} catch (InterruptedException e)	{ e.printStackTrace(); }
 		
 		// Once wait is through, we decrement the number of people waiting
 		// And similarly increment people in the elevator
-		ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
-		ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
 		
 		// Acquire some in-elevator-waiting semaphore for destination floor
 		// i.e. conduct a wait for elevator to release the person at desired floor
-		try { ElevatorScene.waitInElevatorSemaphoreForFloor.get(destinationFloor).acquire(); }
+		try { ElevatorScene.waitInElevatorSemaphoreForFloor[destinationFloor][transitElevator].acquire(); }
 		catch (InterruptedException e) { e.printStackTrace(); }
 		
 		// Decrement number of people in elevator as this person is at desired floor

@@ -56,12 +56,13 @@ public class Elevator implements Runnable{
 			// Elevator checks if any person in it wishes to get out at floor
 			if (!ElevatorScene.scene.elevatorIsEmpty(thisElevator)) {
 				try {
-					ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).release(numberOfPeopleInElevator);
+					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].release(numberOfPeopleInElevator);
 					elevatorWait(true);
 					numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
-					ElevatorScene.waitInElevatorSemaphoreForFloor.get(isAtFloor).acquire(numberOfPeopleInElevator);
+					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].acquire(numberOfPeopleInElevator);
 					
 				} catch (InterruptedException e) { e.printStackTrace(); }
+				
 				elevatorWait(true);
 			}
 			
@@ -70,13 +71,13 @@ public class Elevator implements Runnable{
 			while	(!ElevatorScene.scene.noOneWaitingAtFloor(isAtFloor) &&
 					 !ElevatorScene.scene.elevatorIsFull(thisElevator)) {
 				try {
+					System.out.println(ElevatorScene.oneElevatorOpensAtTimeMutex.availablePermits());
 					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
 						// critical section
+						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
 						ElevatorScene.waitForElevatorSemaphoreAtFloor.get(isAtFloor).release();
-					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
-					elevatorWait(false);
-					
 				} catch (InterruptedException e) { e.printStackTrace(); }
+				elevatorWait(false);
 			}
 			
 			// Check whether elevator is at top or bottom floor
@@ -91,6 +92,10 @@ public class Elevator implements Runnable{
 			else					{ ElevatorScene.scene.decrementElevatorFloor(thisElevator); }
 			
 			elevatorWait(true);
+			
+			if(ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator) > 6) {
+				System.out.println("SOMETHING WENT WRONG");
+			}
 		}
 	}
 

@@ -9,7 +9,6 @@
  *
  *  ================================================================= */
 
-
 package com.ru.usty.elevator;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
@@ -22,7 +21,7 @@ public class ElevatorScene {
 	 * 	VARIABLE DECLARATIONS
 	 **************************/
 	
-	/* TIME VISUALIZATION WAITS AND RUNS */
+	/* BASE VARIABLE TIME VISUALIZATION WAITS */
 	public static final int VISUALIZATION_WAIT_TIME = 500;
 	
 	/* ELEVATORSCENE CLASS ACCESS BY OTHER CLASSES */
@@ -31,7 +30,7 @@ public class ElevatorScene {
 	/* ENVIRONMENT SPECIFICATIONS */
 	private int numberOfFloors;
 	private int numberOfElevators;
-	private int maximumElevatorPopulation;
+	public int maximumElevatorPopulation;
 	public int currentlyOpenedElevator;
 	public boolean elevatorsShouldStop;
 	public ArrayList<Thread> elevators = null;
@@ -42,7 +41,7 @@ public class ElevatorScene {
 	public ArrayList<Integer> elevatorPosition;
 	public ArrayList<Integer> elevatorPopulation;
 	
-	/* SEMAPHORES/MUTEXES */
+	/* SEMAPHORES/MUTEXES FOR THREAD SAFETY (MUTUAL EXCLUSION) */
 	public static Semaphore exitedCountMutex;
 	public static Semaphore personCountMutex;
 	public static Semaphore oneEnterElevatorAtTimeMutex;
@@ -50,9 +49,10 @@ public class ElevatorScene {
 	public static Semaphore oneElevatorOpensAtTimeMutex;
 	public static ArrayList <Semaphore> elevatorPositionMutex;
 	public static ArrayList <Semaphore> elevatorPopulationMutex;
-	public static ArrayList <Semaphore> waitInElevatorSemaphoreForFloor;
+	public static Semaphore waitInElevatorSemaphoreForFloor[][];
 	public static ArrayList <Semaphore> waitForElevatorSemaphoreAtFloor;
 
+	
 	
 	/************************************
 	 * 		BASE FUNCTIONS (CHANGED)
@@ -61,7 +61,6 @@ public class ElevatorScene {
 	// Initializes environment and variables necessary for a given problem
 	public void restartScene(int numberOfFloors, int numberOfElevators) {
 		
-		
 		/* INITIALIZE ENVIRONMENT */
 		this.numberOfFloors = numberOfFloors;
 		this.numberOfElevators = numberOfElevators;
@@ -69,7 +68,7 @@ public class ElevatorScene {
 		this.currentlyOpenedElevator = 0;
 		
 		// Kill elevators from previous scene still running
-		// Wait for them to die (brutal)
+		// Join elevator threads to main thread to wait for them to die (brutal)
 		elevatorsShouldStop = true;
 		if(elevators != null) {
 			for (Thread elevator : elevators) {
@@ -91,20 +90,20 @@ public class ElevatorScene {
 		ElevatorScene.oneExitsElevatorAtTimeMutex	=		new Semaphore(1);
 		ElevatorScene.oneElevatorOpensAtTimeMutex	=		new Semaphore(1);
 		elevatorPositionMutex = new ArrayList<Semaphore>();
+		elevatorPopulationMutex = new ArrayList<Semaphore>();
+		waitForElevatorSemaphoreAtFloor = new ArrayList<Semaphore>();
 		for(int i = 0; i < numberOfElevators; i++) {
 			elevatorPositionMutex.add(new Semaphore(1));
-		}
-		elevatorPopulationMutex = new ArrayList<Semaphore>();
-		for(int i = 0; i < numberOfElevators; i++) {
 			elevatorPopulationMutex.add(new Semaphore(1));
 		}
-		waitForElevatorSemaphoreAtFloor = new ArrayList<Semaphore>();
 		for(int i = 0; i < numberOfFloors; i++) {
 			waitForElevatorSemaphoreAtFloor.add(new Semaphore(0));
 		}
-		waitInElevatorSemaphoreForFloor = new ArrayList<Semaphore>();
+		waitInElevatorSemaphoreForFloor = new Semaphore[numberOfFloors][numberOfElevators];
 		for(int i = 0; i < numberOfFloors; i++) {
-			waitInElevatorSemaphoreForFloor.add(new Semaphore(0));
+			for(int j = 0; j < numberOfElevators; j++) {
+				waitInElevatorSemaphoreForFloor[i][j] = new Semaphore(0);
+			}
 		}
 		
 		/* INITIALIZE FLOORS VARIABLES */
@@ -113,37 +112,31 @@ public class ElevatorScene {
 		for(int i = 0; i < numberOfFloors; i++) {
 			this.personCount.add(0);
 		}
-		
 		if(exitedCount == null)	{ exitedCount = new ArrayList<Integer>(); }
 		else						{ exitedCount.clear(); }
-		
 		for(int i = 0; i < getNumberOfFloors(); i++) {
 			this.exitedCount.add(0);
-		}
-		
-		/* INITIALIZE ELEVATOR VARIABLES */
-		// Position, population and elevator threads
-		elevatorPosition = new ArrayList<Integer>();
-		elevatorPopulation = new ArrayList<Integer>();
-		for(int i = 0; i < numberOfElevators; i++) {
-			this.elevatorPosition.add(0);
-			this.elevatorPopulation.add(0);
 		}
 		
 		/* SET THE SCENE */
 		ElevatorScene.scene = this;
 		
-		/* INITIALIZE ELEVATORS */
+		/* INITIALIZE ELEVATOR VARIABLES */
+		// Position, population and elevator threads
+		elevatorPosition = new ArrayList<Integer>();
+		elevatorPopulation = new ArrayList<Integer>();
 		elevators = new ArrayList<Thread>();
 		for(int i = 0; i < numberOfElevators; i++) {
+			this.elevatorPosition.add(0);
+			this.elevatorPopulation.add(0);
 			elevators.add(new Thread(new Elevator(i)));
 			elevators.get(i).start();
 		}
+
 	}
 
 	// Adds a person to the environment waiting at some floor for an elevator
 	public Thread addPerson(int sourceFloor, int destinationFloor) {
-
 		Thread personThread = new Thread(new Person(sourceFloor, destinationFloor));
 		personThread.start(); incrementNumberOfPeopleWaitingAtFloor(sourceFloor);
 		
@@ -164,7 +157,7 @@ public class ElevatorScene {
 	
 	// Determines whether a given elevator is full
 	public boolean elevatorIsFull (int elevator) {
-		return getNumberOfPeopleInElevator(elevator) == maximumElevatorPopulation;
+		return getNumberOfPeopleInElevator(elevator) >= maximumElevatorPopulation;
 	}
 	
 	// Determines whether a given elevator is empty
@@ -280,7 +273,6 @@ public class ElevatorScene {
 	
 	// Gets how many have exited at a given floor
 	public int getExitedCountAtFloor(int floor) {
-		
 		if (floor < getNumberOfFloors())	{ return exitedCount.get(floor); }
 		else								{ return 0; }
 	}
@@ -288,7 +280,6 @@ public class ElevatorScene {
 	// Let the system know that a person has exited.
 	// Person calls it when let off elevator before thread returns
 	public void personExitsAtFloor(int floor) {
-		
 		try {
 			exitedCountMutex.acquire();
 				// critical section
