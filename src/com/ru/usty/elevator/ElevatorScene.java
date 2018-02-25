@@ -32,7 +32,7 @@ public class ElevatorScene {
 	private int numberOfElevators;
 	public int maximumElevatorPopulation;
 	public int currentlyOpenedElevator;
-	public boolean elevatorsShouldStop;
+	public static boolean elevatorsMayDie;
 	public ArrayList<Thread> elevators = null;
 	
 	/* SYSTEM VARIABLE COUNT MANAGEMENT */
@@ -60,7 +60,9 @@ public class ElevatorScene {
 	
 	// Initializes environment and variables necessary for a given problem
 	public void restartScene(int numberOfFloors, int numberOfElevators) {
-		
+
+		/* SET THE SCENE */
+		ElevatorScene.scene = this;
 		/* INITIALIZE ENVIRONMENT */
 		this.numberOfFloors = numberOfFloors;
 		this.numberOfElevators = numberOfElevators;
@@ -69,7 +71,7 @@ public class ElevatorScene {
 		
 		// Kill elevators from previous scene still running
 		// Join elevator threads to main thread to wait for them to die (brutal)
-		elevatorsShouldStop = true;
+		ElevatorScene.elevatorsMayDie = true;
 		if(elevators != null) {
 			for (Thread elevator : elevators) {
 				if (elevator != null) {
@@ -80,11 +82,23 @@ public class ElevatorScene {
 				}
 			}
 		}
-		elevatorsShouldStop = false;
+		
+
+		/* INITIALIZE FLOORS VARIABLES */
+		// person count and exited person count per floor
+		personCount = new ArrayList<Integer>();
+		for(int i = 0; i < numberOfFloors; i++) {
+			this.personCount.add(0);
+		}
+		if(exitedCount == null)	{ exitedCount = new ArrayList<Integer>(); }
+		else						{ exitedCount.clear(); }
+		for(int i = 0; i < getNumberOfFloors(); i++) {
+			this.exitedCount.add(0);
+		}
+		
 				
 		/* INITIALIZE MUTEXES AND SEMAPHORES FOR ENVIRONMENT */
 		ElevatorScene.exitedCountMutex				=		new Semaphore(1);
-		ElevatorScene.personCountMutex				=		new Semaphore(1);
 		ElevatorScene.personCountMutex				=		new Semaphore(1);
 		ElevatorScene.oneEnterElevatorAtTimeMutex	=		new Semaphore(1);
 		ElevatorScene.oneExitsElevatorAtTimeMutex	=		new Semaphore(1);
@@ -106,21 +120,8 @@ public class ElevatorScene {
 			}
 		}
 		
-		/* INITIALIZE FLOORS VARIABLES */
-		// person count and exited person count per floor
-		personCount = new ArrayList<Integer>();
-		for(int i = 0; i < numberOfFloors; i++) {
-			this.personCount.add(0);
-		}
-		if(exitedCount == null)	{ exitedCount = new ArrayList<Integer>(); }
-		else						{ exitedCount.clear(); }
-		for(int i = 0; i < getNumberOfFloors(); i++) {
-			this.exitedCount.add(0);
-		}
-		
-		/* SET THE SCENE */
-		ElevatorScene.scene = this;
-		
+
+		elevatorsMayDie = false;
 		/* INITIALIZE ELEVATOR VARIABLES */
 		// Position, population and elevator threads
 		elevatorPosition = new ArrayList<Integer>();
@@ -144,11 +145,15 @@ public class ElevatorScene {
 	}
 
 	// Gets the number of people in a given elevator
-	public int getNumberOfPeopleInElevator(int elevator) { return elevatorPopulation.get(elevator); }
-
+	public int getNumberOfPeopleInElevator(int elevator) { 
+		if (elevator < elevatorPopulation.size()) 	{ return elevatorPopulation.get(elevator); }
+		else 										{ return elevatorPopulation.get(0); }
+	}
 	// Gets the position/the current floor for a given elevator
-	public int getCurrentFloorForElevator(int elevator) { return elevatorPosition.get(elevator); }
-	
+	public int getCurrentFloorForElevator(int elevator) { 
+		if (elevator < elevatorPosition.size()) 	{ return elevatorPosition.get(elevator); }
+		else										{ return elevatorPosition.get(0); }
+	}
 	
 	
 	/****************************************
@@ -254,7 +259,13 @@ public class ElevatorScene {
 	public int getNumberOfFloors() { return numberOfFloors; }
 	
 	// Gets number of persons waiting at a given floor
-	public int getNumberOfPeopleWaitingAtFloor(int floor) { return personCount.get(floor); }
+	public int getNumberOfPeopleWaitingAtFloor(int floor) { 
+		if (floor < personCount.size()) { 
+			return personCount.get(floor);
+		} else {
+			return personCount.get(0);
+		}
+	}
 
 	// Sets number of floors in problem
 	public void setNumberOfFloors(int numberOfFloors) { this.numberOfFloors = numberOfFloors; }
@@ -273,8 +284,8 @@ public class ElevatorScene {
 	
 	// Gets how many have exited at a given floor
 	public int getExitedCountAtFloor(int floor) {
-		if (floor < getNumberOfFloors())	{ return exitedCount.get(floor); }
-		else								{ return 0; }
+		if (floor < getNumberOfFloors() && floor < exitedCount.size())	{ return exitedCount.get(floor); }
+		else																{ return 0; }
 	}
 
 	// Let the system know that a person has exited.

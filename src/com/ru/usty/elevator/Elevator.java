@@ -47,7 +47,7 @@ public class Elevator implements Runnable{
 		while (true) {
 			
 			// Stop thread when elevators are explicitly notified to stop
-			if (ElevatorScene.scene.elevatorsShouldStop) { return; }
+			if (ElevatorScene.elevatorsMayDie) { return; }
 			
 			// Get current floor of elevator in each iteration
 			int isAtFloor = ElevatorScene.scene.getCurrentFloorForElevator(thisElevator);
@@ -59,6 +59,7 @@ public class Elevator implements Runnable{
 					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].release(numberOfPeopleInElevator);
 					elevatorWait(true);
 					numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
+					/* Different */
 					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].acquire(numberOfPeopleInElevator);
 					
 				} catch (InterruptedException e) { e.printStackTrace(); }
@@ -71,14 +72,26 @@ public class Elevator implements Runnable{
 			while	(!ElevatorScene.scene.noOneWaitingAtFloor(isAtFloor) &&
 					 !ElevatorScene.scene.elevatorIsFull(thisElevator)) {
 				try {
-					System.out.println(ElevatorScene.oneElevatorOpensAtTimeMutex.availablePermits());
 					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
 						// critical section
 						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
 						ElevatorScene.waitForElevatorSemaphoreAtFloor.get(isAtFloor).release();
+						Thread.sleep(50);
+						ElevatorScene.oneElevatorOpensAtTimeMutex.release();
 				} catch (InterruptedException e) { e.printStackTrace(); }
 				elevatorWait(false);
 			}
+			
+			/*if	(!ElevatorScene.scene.noOneWaitingAtFloor(isAtFloor) &&
+				 !ElevatorScene.scene.elevatorIsFull(thisElevator)) {
+				try {
+					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
+						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
+						ElevatorScene.waitForElevatorSemaphoreAtFloor.get(isAtFloor).release(ElevatorScene.scene.maximumElevatorPopulation - ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator));
+					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
+				} catch (InterruptedException e) { e.printStackTrace(); }
+				
+			}*/
 			
 			// Check whether elevator is at top or bottom floor
 			// If so change orientation of the elevator for next iteration

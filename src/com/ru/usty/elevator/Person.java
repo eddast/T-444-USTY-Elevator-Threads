@@ -35,15 +35,11 @@ public class Person implements Runnable {
 		// Only one can enter elevator at time, so we have extra mutex around the wait semaphore
 		try { 
 			
-			//ElevatorScene.oneEnterElevatorAtTimeMutex.acquire();
-				// critical section
+
 				ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
 				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
 				ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
 				ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
-				Thread.sleep(50);
-				ElevatorScene.oneElevatorOpensAtTimeMutex.release();
-			//ElevatorScene.oneEnterElevatorAtTimeMutex.release();
 			
 		} catch (InterruptedException e)	{ e.printStackTrace(); }
 		
