@@ -32,14 +32,11 @@ public class Person implements Runnable {
 		int transitElevator = 0;
 		
 		// Acquire a semaphore, i.e. conduct a wait for an available elevator 
-		// Only one can enter elevator at time, so we have extra mutex around the wait semaphore
 		try { 
-			
-
-				ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
-				transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
-				ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
-				ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
+			ElevatorScene.waitForElevatorSemaphoreAtFloor.get(this.sourceFloor).acquire();
+			transitElevator = ElevatorScene.scene.getElevatorCurrentlyOpen();
+			ElevatorScene.scene.incrementElevatorPopulation(transitElevator);
+			ElevatorScene.scene.decrementNumberOfPeopleWaitingAtFloor(sourceFloor);
 			
 		} catch (InterruptedException e)	{ e.printStackTrace(); }
 		

@@ -32,7 +32,7 @@ public class ElevatorScene {
 	private int numberOfElevators;
 	public int maximumElevatorPopulation;
 	public int currentlyOpenedElevator;
-	public static boolean elevatorsMayDie;
+	public static boolean elevatorsShouldStop;
 	public ArrayList<Thread> elevators = null;
 	
 	/* SYSTEM VARIABLE COUNT MANAGEMENT */
@@ -44,8 +44,6 @@ public class ElevatorScene {
 	/* SEMAPHORES/MUTEXES FOR THREAD SAFETY (MUTUAL EXCLUSION) */
 	public static Semaphore exitedCountMutex;
 	public static Semaphore personCountMutex;
-	public static Semaphore oneEnterElevatorAtTimeMutex;
-	public static Semaphore oneExitsElevatorAtTimeMutex;
 	public static Semaphore oneElevatorOpensAtTimeMutex;
 	public static ArrayList <Semaphore> elevatorPositionMutex;
 	public static ArrayList <Semaphore> elevatorPopulationMutex;
@@ -71,7 +69,7 @@ public class ElevatorScene {
 		
 		// Kill elevators from previous scene still running
 		// Join elevator threads to main thread to wait for them to die (brutal)
-		ElevatorScene.elevatorsMayDie = true;
+		ElevatorScene.elevatorsShouldStop = true;
 		if(elevators != null) {
 			for (Thread elevator : elevators) {
 				if (elevator != null) {
@@ -100,8 +98,6 @@ public class ElevatorScene {
 		/* INITIALIZE MUTEXES AND SEMAPHORES FOR ENVIRONMENT */
 		ElevatorScene.exitedCountMutex				=		new Semaphore(1);
 		ElevatorScene.personCountMutex				=		new Semaphore(1);
-		ElevatorScene.oneEnterElevatorAtTimeMutex	=		new Semaphore(1);
-		ElevatorScene.oneExitsElevatorAtTimeMutex	=		new Semaphore(1);
 		ElevatorScene.oneElevatorOpensAtTimeMutex	=		new Semaphore(1);
 		elevatorPositionMutex = new ArrayList<Semaphore>();
 		elevatorPopulationMutex = new ArrayList<Semaphore>();
@@ -119,9 +115,8 @@ public class ElevatorScene {
 				waitInElevatorSemaphoreForFloor[i][j] = new Semaphore(0);
 			}
 		}
+		elevatorsShouldStop = false;
 		
-
-		elevatorsMayDie = false;
 		/* INITIALIZE ELEVATOR VARIABLES */
 		// Position, population and elevator threads
 		elevatorPosition = new ArrayList<Integer>();
