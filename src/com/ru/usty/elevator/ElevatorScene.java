@@ -48,7 +48,7 @@ public class ElevatorScene {
 	public static ArrayList <Semaphore> elevatorPositionMutex;
 	public static ArrayList <Semaphore> elevatorPopulationMutex;
 	public static Semaphore waitInElevatorSemaphoreForFloor[][];
-	public static ArrayList <Semaphore> waitForElevatorSemaphoreAtFloor;
+	public static Semaphore waitForElevatorSemaphoreAtFloor[][];
 
 	
 	
@@ -101,13 +101,14 @@ public class ElevatorScene {
 		ElevatorScene.oneElevatorOpensAtTimeMutex	=		new Semaphore(1);
 		elevatorPositionMutex = new ArrayList<Semaphore>();
 		elevatorPopulationMutex = new ArrayList<Semaphore>();
-		waitForElevatorSemaphoreAtFloor = new ArrayList<Semaphore>();
 		for(int i = 0; i < numberOfElevators; i++) {
 			elevatorPositionMutex.add(new Semaphore(1));
 			elevatorPopulationMutex.add(new Semaphore(1));
 		}
+		waitForElevatorSemaphoreAtFloor = new Semaphore[numberOfFloors][2];
 		for(int i = 0; i < numberOfFloors; i++) {
-			waitForElevatorSemaphoreAtFloor.add(new Semaphore(0));
+			waitForElevatorSemaphoreAtFloor[i][0] = new Semaphore(0);
+			waitForElevatorSemaphoreAtFloor[i][1] = new Semaphore(0);
 		}
 		waitInElevatorSemaphoreForFloor = new Semaphore[numberOfFloors][numberOfElevators];
 		for(int i = 0; i < numberOfFloors; i++) {
@@ -141,13 +142,13 @@ public class ElevatorScene {
 
 	// Gets the number of people in a given elevator
 	public int getNumberOfPeopleInElevator(int elevator) { 
-		if (elevator < elevatorPopulation.size()) 	{ return elevatorPopulation.get(elevator); }
+		if (elevator < elevatorPopulation.size())	{ return elevatorPopulation.get(elevator); }
 		else 										{ return elevatorPopulation.get(0); }
 	}
 	// Gets the position/the current floor for a given elevator
 	public int getCurrentFloorForElevator(int elevator) { 
-		if (elevator < elevatorPosition.size()) 	{ return elevatorPosition.get(elevator); }
-		else										{ return elevatorPosition.get(0); }
+		if (elevator < elevatorPosition.size()) 		{ return elevatorPosition.get(elevator); }
+		else											{ return elevatorPosition.get(0); }
 	}
 	
 	
@@ -163,11 +164,6 @@ public class ElevatorScene {
 	// Determines whether a given elevator is empty
 	public boolean elevatorIsEmpty (int elevator) {
 		return getNumberOfPeopleInElevator(elevator) == 0;
-	}
-	
-	// Determines if no one is waiting for an elevator at a given floor
-	public boolean noOneWaitingAtFloor(int floor) {
-		return getNumberOfPeopleWaitingAtFloor(floor) == 0;
 	}
 	
 	/**
@@ -244,6 +240,7 @@ public class ElevatorScene {
 		} catch (InterruptedException e) { e.printStackTrace(); }
 	}
 	
+	// Gets currently opened elevator
 	public int getElevatorCurrentlyOpen() { return this.currentlyOpenedElevator; }
 	
 	/*****************************************************
@@ -258,7 +255,7 @@ public class ElevatorScene {
 		if (floor < personCount.size()) { 
 			return personCount.get(floor);
 		} else {
-			return personCount.get(0);
+			return 0;
 		}
 	}
 

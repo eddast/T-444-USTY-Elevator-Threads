@@ -28,7 +28,7 @@ public class Elevator implements Runnable{
 	}
 	
 	// Make elevator wait for long or short time
-	// Makes visualization prettier
+	// This makes visualization run smoothly
 	private void elevatorWait(boolean isMovingBetweenFloors) {
 		
 		int waitTime;
@@ -52,12 +52,14 @@ public class Elevator implements Runnable{
 			// Get current floor of elevator in each iteration
 			int isAtFloor = ElevatorScene.scene.getCurrentFloorForElevator(thisElevator);
 			int numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
-			
-			// Elevator checks if any person in it wishes to get out at floor
+
+			// Elevator checks if any person in it wishes to get out at the floor it's on
+			// Releases as many people as are in elevator, then if some people did not exit,
+			// Elevator acquires the semaphore back so that there are no excess releases
 			if (!ElevatorScene.scene.elevatorIsEmpty(thisElevator)) {
 				try {
 					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].release(numberOfPeopleInElevator);
-					elevatorWait(true);
+					elevatorWait(false);
 					numberOfPeopleInElevator = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
 					ElevatorScene.waitInElevatorSemaphoreForFloor[isAtFloor][thisElevator].acquire(numberOfPeopleInElevator);
 					
@@ -66,29 +68,38 @@ public class Elevator implements Runnable{
 				elevatorWait(true);
 			}
 			
-			// Elevator takes in person/s waiting if there are any
-			// Lets in persons in IF there's room in elevator
-			while	(!ElevatorScene.scene.noOneWaitingAtFloor(isAtFloor) &&
-					 !ElevatorScene.scene.elevatorIsFull(thisElevator)) {
-				try {
-					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
-						// critical section
-						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
-						ElevatorScene.waitForElevatorSemaphoreAtFloor.get(isAtFloor).release();
-						Thread.sleep(50);
-					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
-				} catch (InterruptedException e) { e.printStackTrace(); }
-				elevatorWait(false);
-			}
-			
 			// Check whether elevator is at top or bottom floor
 			// If so change orientation of the elevator for next iteration
 			int bottomFloor = 0; int topFloor = ElevatorScene.scene.getNumberOfFloors() - 1; 
 			if ( (isAtFloor == topFloor) || (isAtFloor == bottomFloor) ) {
 					this.ascending = !this.ascending;
+			} int orientation = (this.ascending) ? 1 : 0;
+			
+			
+			// Elevator takes in persons while there's room in elevator
+			// Elevator only takes in persons that are going in same direction as elevator (BONUS: up/down button)
+			// Once no other person enters elevator, the loop brakes
+			while	(!ElevatorScene.scene.elevatorIsFull(thisElevator)) {
+				try {
+					ElevatorScene.oneElevatorOpensAtTimeMutex.acquire();
+						// critical section
+						ElevatorScene.scene.currentlyOpenedElevator = thisElevator;
+						ElevatorScene.waitForElevatorSemaphoreAtFloor[isAtFloor][orientation].release();
+						Thread.sleep(50);
+						int newPopulation = ElevatorScene.scene.getNumberOfPeopleInElevator(thisElevator);
+						if (numberOfPeopleInElevator == newPopulation) {
+							ElevatorScene.waitForElevatorSemaphoreAtFloor[isAtFloor][orientation].acquire();
+							ElevatorScene.oneElevatorOpensAtTimeMutex.release(); break;
+						} else { numberOfPeopleInElevator = newPopulation; }
+					ElevatorScene.oneElevatorOpensAtTimeMutex.release();
+					
+				} catch (InterruptedException e) { e.printStackTrace(); }
+				
+				elevatorWait(false);
 			}
 			
-			// Now that elevator is done on this floor it moves to the next
+			
+			// Now that elevator has done it's duty on this floor it moves to the next
 			if (this.ascending)	{ ElevatorScene.scene.incrementElevatorFloor(thisElevator); }
 			else					{ ElevatorScene.scene.decrementElevatorFloor(thisElevator); }
 			
